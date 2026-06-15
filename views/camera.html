@@ -44,6 +44,17 @@
       <div id="counter" class="counter hidden"></div>
     </div>
 
+    <button id="flip-btn" class="flip-btn" aria-label="Changer de caméra">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+           stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+        <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5" />
+        <path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5" />
+        <circle cx="12" cy="12" r="3" />
+        <path d="m18 22-3-3 3-3" />
+        <path d="m6 2 3 3-3 3" />
+      </svg>
+    </button>
+
     <div class="controls">
       <!-- Sélecteur de filtre : glisse horizontalement, le filtre centré est actif -->
       <div id="filter-strip" class="filter-strip">
@@ -56,16 +67,6 @@
 
       <div class="shutter-zone">
         <button id="shutter" class="shutter" aria-label="Prendre une photo"></button>
-        <button id="flip-btn" class="flip-btn" aria-label="Changer de caméra">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-               stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
-            <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5" />
-            <path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5" />
-            <circle cx="12" cy="12" r="3" />
-            <path d="m18 22-3-3 3-3" />
-            <path d="m6 2 3 3-3 3" />
-          </svg>
-        </button>
       </div>
     </div>
 

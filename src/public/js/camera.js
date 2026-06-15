@@ -11,8 +11,8 @@
   var MAX_PHOTOS = cfg.maxPhotosPerSession && cfg.maxPhotosPerSession !== ''
     ? parseInt(cfg.maxPhotosPerSession, 10) : null;
   var MAX_SIDE = 1920;       // résolution max de la photo envoyée
-  var PREVIEW_MAX = 720;     // résolution de travail du viseur (perf)
-  var PREVIEW_FRAME_MS = 60; // throttle des filtres lourds (~16 fps)
+  var PREVIEW_MAX = 900;     // résolution de travail du viseur filtré
+  var PREVIEW_FRAME_MS = 40; // throttle des filtres (~25 fps)
   var PENDING_KEY = 'wc_pending';
   var COUNT_KEY = 'wc_count';
 
@@ -112,6 +112,9 @@
     chips.forEach(function (chip) {
       chip.classList.toggle('active', chip.dataset.filter === name);
     });
+    // raw : on masque le canvas → la vidéo native (nette, plein fps) s'affiche.
+    // filtre : on montre le canvas traité par-dessus.
+    previewCanvas.style.opacity = name === 'raw' ? '0' : '1';
   }
 
   function syncFilterFromScroll() {
@@ -167,12 +170,14 @@
   function previewLoop(ts) {
     if (!previewRunning) return;
     requestAnimationFrame(previewLoop);
-    // Le brut tourne à plein régime ; les filtres lourds sont throttlés.
-    if (currentFilter !== 'raw' && ts - lastFrame < PREVIEW_FRAME_MS) return;
+    // raw : rien à traiter, la vidéo native s'affiche directement (nette, fluide).
+    if (currentFilter === 'raw') return;
+    // Filtres : canvas en résolution réduite, throttlé.
+    if (ts - lastFrame < PREVIEW_FRAME_MS) return;
     lastFrame = ts;
     if (!sizePreview()) return;
     pctx.drawImage(video, 0, 0, previewCanvas.width, previewCanvas.height);
-    if (currentFilter !== 'raw') window.Filters.apply(previewCanvas, currentFilter);
+    window.Filters.apply(previewCanvas, currentFilter);
   }
 
   function startPreview() {
@@ -184,21 +189,39 @@
   function stopPreview() { previewRunning = false; }
 
   // ---- Caméra ----
+  // Acquisition : on force le bon capteur avec `exact`, repli souple si refusé
+  // (ex. webcam de portable sans caméra "environment").
+  function acquire(useFacing) {
+    return navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: { exact: useFacing } }, audio: false })
+      .catch(function () {
+        return navigator.mediaDevices.getUserMedia({
+          video: { facingMode: useFacing },
+          audio: false,
+        });
+      });
+  }
+
+  function attachStream(s) {
+    stream = s;
+    video.srcObject = s;
+    var p = video.play();
+    if (p && p.catch) p.catch(function () {});
+    var mirror = facing === 'user';
+    video.classList.toggle('mirror', mirror);
+    previewCanvas.classList.toggle('mirror', mirror);
+  }
+
   function startCamera() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       hide(welcome); show(denied); return;
     }
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: { ideal: facing } }, audio: false })
+    acquire(facing)
       .then(function (s) {
-        stream = s;
-        video.srcObject = s;
-        var p = video.play();
-        if (p && p.catch) p.catch(function () {});
+        attachStream(s);
         hide(welcome);
         hide(denied);
         show(viewfinder);
-        previewCanvas.classList.toggle('mirror', facing === 'user');
         updateCounter();
         updateReveal();
         setFilter(currentFilter);
@@ -213,23 +236,22 @@
   // Bascule caméra avant / arrière.
   function flipCamera() {
     if (!stream) return;
-    facing = facing === 'environment' ? 'user' : 'environment';
+    if (flipBtn) flipBtn.disabled = true;
+    var target = facing === 'environment' ? 'user' : 'environment';
+    var previous = facing;
+    facing = target;
     stream.getTracks().forEach(function (t) { t.stop(); });
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: { ideal: facing } }, audio: false })
-      .then(function (s) {
-        stream = s;
-        video.srcObject = s;
-        var p = video.play();
-        if (p && p.catch) p.catch(function () {});
-        previewCanvas.classList.toggle('mirror', facing === 'user');
-        startPreview();
-      })
+    acquire(target)
+      .then(function (s) { attachStream(s); startPreview(); })
       .catch(function () {
-        // l'autre caméra a échoué : on rétablit la précédente
-        facing = facing === 'environment' ? 'user' : 'environment';
-        startCamera();
-      });
+        // L'autre caméra a échoué : on rétablit la précédente.
+        facing = previous;
+        return acquire(previous).then(function (s) { attachStream(s); startPreview(); });
+      })
+      .then(
+        function () { if (flipBtn) flipBtn.disabled = false; },
+        function () { if (flipBtn) flipBtn.disabled = false; }
+      );
   }
 
   // ---- Capture ----
