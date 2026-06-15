@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { promises as fs } from 'node:fs';
+import { Readable } from 'node:stream';
+import archiver from 'archiver';
 import { getPublicConfig, isRevealed } from '../lib/config.js';
 import { renderView } from '../lib/views.js';
 import { listPhotos, isValidPhotoName, photoPath } from '../lib/photos.js';
@@ -27,6 +29,26 @@ gallery.get('/api/photos', async (c) => {
   return c.json({
     ok: true,
     photos: photos.map((p) => ({ id: p.id, filter: p.filter, timestamp: p.timestamp })),
+  });
+});
+
+// GET /export → archive ZIP de toutes les photos (public, uniquement après reveal)
+gallery.get('/export', async (c) => {
+  if (!isRevealed() && !isAdmin(c)) {
+    return c.text('Forbidden', 403);
+  }
+  const photos = await listPhotos({ order: 'asc' });
+  const archive = archiver('zip', { zlib: { level: 6 } });
+  for (const p of photos) {
+    archive.file(photoPath(p.filename), { name: p.filename });
+  }
+  archive.finalize();
+  const webStream = Readable.toWeb(archive);
+  return new Response(webStream, {
+    headers: {
+      'Content-Type': 'application/zip',
+      'Content-Disposition': 'attachment; filename="obscura-photos.zip"',
+    },
   });
 });
 

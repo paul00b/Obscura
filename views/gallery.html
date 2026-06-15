@@ -31,6 +31,7 @@
   <main id="gallery" class="gallery hidden">
     <header class="gallery-header">
       <h1 class="display">{{eventName}}</h1>
+      <a class="btn gallery-download" href="/export" download>Télécharger toutes les photos</a>
     </header>
     <div id="grid" class="grid"></div>
     <p id="empty" class="empty-state hidden">Aucune photo pour le moment.</p>
@@ -45,6 +46,7 @@
   </div>
 
   <script src="/js/pwa.js"></script>
+  <script src="/js/pwa-install.js"></script>
   <script src="/js/gallery.js"></script>
 </body>
 </html>

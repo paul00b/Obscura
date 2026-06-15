@@ -337,6 +337,54 @@ textarea.input {
   z-index: 5;
 }
 
+/* ============ BANDEAU INSTALL PWA ============ */
+.pwa-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem calc(0.85rem + env(safe-area-inset-bottom));
+  background: rgba(17, 17, 17, 0.92);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--border);
+}
+.pwa-banner .pwa-text {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.4;
+}
+.pwa-banner .pwa-text b {
+  color: var(--accent);
+  font-weight: 500;
+}
+.pwa-banner .pwa-install {
+  flex: 0 0 auto;
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  color: var(--bg);
+  background: var(--accent);
+  border: none;
+  border-radius: 2px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+.pwa-banner .pwa-close {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+  cursor: pointer;
+}
+
 /* ============ GALERIE ============ */
 .countdown {
   font-family: var(--font-ui);
@@ -350,6 +398,9 @@ textarea.input {
 .gallery-header {
   text-align: center;
   padding: 2rem 0 2.5rem;
+}
+.gallery-download {
+  margin-top: 1.25rem;
 }
 .grid {
   column-count: 2;

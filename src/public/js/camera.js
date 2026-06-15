@@ -87,9 +87,14 @@
       return;
     }
     var totalMin = Math.floor(diff / 60000);
-    var h = Math.floor(totalMin / 60);
+    var d = Math.floor(totalMin / 1440);
+    var h = Math.floor((totalMin % 1440) / 60);
     var m = totalMin % 60;
-    revealEl.textContent = 'Reveal dans ' + h + '.' + (m < 10 ? '0' + m : m);
+    var txt;
+    if (d >= 1) txt = d + ' j ' + h + ' h';        // ex. "26 j 12 h"
+    else if (h >= 1) txt = h + ' h ' + (m < 10 ? '0' + m : m); // ex. "8 h 05"
+    else txt = m + ' min';                          // ex. "45 min"
+    revealEl.textContent = 'Reveal dans ' + txt;
     show(revealEl);
   }
 

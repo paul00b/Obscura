@@ -1,12 +1,13 @@
 /* Service worker minimal : installabilité PWA + shell hors-ligne.
    On ne met JAMAIS en cache les uploads, photos, API ou pages admin. */
-var CACHE = 'obscura-v5';
+var CACHE = 'obscura-v6';
 var SHELL = [
   '/',
   '/css/styles.css',
   '/js/filters.js',
   '/js/camera.js',
   '/js/pwa.js',
+  '/js/pwa-install.js',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
 ];
