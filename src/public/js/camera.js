@@ -192,11 +192,14 @@
   // Acquisition : on force le bon capteur avec `exact`, repli souple si refusé
   // (ex. webcam de portable sans caméra "environment").
   function acquire(useFacing) {
+    // On demande de la HD : sans ça, la caméra renvoie du basse définition
+    // par défaut → photos de mauvaise qualité dans la galerie.
+    var hd = { width: { ideal: 1920 }, height: { ideal: 1080 } };
     return navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: { exact: useFacing } }, audio: false })
+      .getUserMedia({ video: Object.assign({ facingMode: { exact: useFacing } }, hd), audio: false })
       .catch(function () {
         return navigator.mediaDevices.getUserMedia({
-          video: { facingMode: useFacing },
+          video: Object.assign({ facingMode: useFacing }, hd),
           audio: false,
         });
       });
@@ -286,7 +289,7 @@
 
     canvas.toBlob(function (blob) {
       if (blob) queueUpload(blob, usedFilter);
-    }, 'image/jpeg', 0.9);
+    }, 'image/jpeg', 0.92);
 
     localCount += 1;
     localStorage.setItem(COUNT_KEY, String(localCount));

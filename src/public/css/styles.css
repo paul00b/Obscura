@@ -389,16 +389,9 @@ textarea.input {
   z-index: 50;
 }
 .lightbox__img {
-  max-width: 92vw;
-  max-height: 88vh;
+  max-width: 96vw;
+  max-height: 90vh;
   object-fit: contain;
-  transition: transform 200ms ease;
-}
-/* Photo paysage pivotée pour remplir un écran portrait */
-.lightbox__img.rotated {
-  transform: rotate(90deg);
-  max-width: 92vh;
-  max-height: 92vw;
 }
 .lightbox__close,
 .lightbox__nav {

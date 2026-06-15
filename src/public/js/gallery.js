@@ -111,16 +111,9 @@
   }
 
   // ---- Lightbox ----
-  // Photo paysage sur écran portrait → on la pivote pour la voir en grand.
-  function applyOrientation() {
-    var landscape = lbImg.naturalWidth > lbImg.naturalHeight;
-    var portraitScreen = window.innerHeight > window.innerWidth;
-    lbImg.classList.toggle('rotated', landscape && portraitScreen);
-  }
-  lbImg.addEventListener('load', applyOrientation);
-
+  // Les photos s'affichent dans leur orientation native (paysage = paysage),
+  // adaptées à l'écran (object-fit: contain) — pas de rotation forcée.
   function showCurrent() {
-    lbImg.classList.remove('rotated');
     lbImg.src = '/photos/' + photos[currentIndex].id;
   }
   function openLightbox(idx) {
@@ -144,10 +137,6 @@
     else if (e.key === 'ArrowLeft') nav(-1);
     else if (e.key === 'ArrowRight') nav(1);
   });
-  window.addEventListener('resize', function () {
-    if (!lightbox.classList.contains('hidden')) applyOrientation();
-  });
-
   // Navigation au swipe (geste tactile) une fois la photo ouverte.
   var touchX = 0, touchY = 0;
   lightbox.addEventListener('touchstart', function (e) {
