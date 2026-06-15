@@ -192,17 +192,23 @@
   // Acquisition : on force le bon capteur avec `exact`, repli souple si refusé
   // (ex. webcam de portable sans caméra "environment").
   function acquire(useFacing) {
-    // On demande de la HD : sans ça, la caméra renvoie du basse définition
-    // par défaut → photos de mauvaise qualité dans la galerie.
+    // Cascade de contraintes : on essaie la meilleure d'abord, et on retombe
+    // toujours sur quelque chose qui marche. La HD (1920x1080) évite le
+    // basse-définition par défaut ; si un appareil la refuse, on dégrade.
     var hd = { width: { ideal: 1920 }, height: { ideal: 1080 } };
-    return navigator.mediaDevices
-      .getUserMedia({ video: Object.assign({ facingMode: { exact: useFacing } }, hd), audio: false })
-      .catch(function () {
-        return navigator.mediaDevices.getUserMedia({
-          video: Object.assign({ facingMode: useFacing }, hd),
-          audio: false,
-        });
-      });
+    var attempts = [
+      Object.assign({ facingMode: { exact: useFacing } }, hd), // bon capteur + HD
+      Object.assign({ facingMode: useFacing }, hd),            // capteur souhaité + HD
+      { facingMode: useFacing },                               // capteur souhaité, déf libre
+      true,                                                     // n'importe quelle caméra
+    ];
+    function tryNext(i) {
+      if (i >= attempts.length) return Promise.reject(new Error('no_camera'));
+      return navigator.mediaDevices
+        .getUserMedia({ video: attempts[i], audio: false })
+        .catch(function () { return tryNext(i + 1); });
+    }
+    return tryNext(0);
   }
 
   function attachStream(s) {
