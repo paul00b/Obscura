@@ -19,6 +19,12 @@
   var currentFilter = (cfg.filterDefault && window.Filters && window.Filters.has(cfg.filterDefault))
     ? cfg.filterDefault : 'raw';
 
+  var REVEAL = null;
+  if (cfg.revealAt) {
+    var rd = new Date(cfg.revealAt);
+    if (!isNaN(rd.getTime())) REVEAL = rd;
+  }
+
   // Éléments
   var welcome = document.getElementById('welcome');
   var viewfinder = document.getElementById('viewfinder');
@@ -30,8 +36,10 @@
   var canvas = document.getElementById('work-canvas');
   var flash = document.getElementById('flash');
   var shutter = document.getElementById('shutter');
+  var flipBtn = document.getElementById('flip-btn');
   var toast = document.getElementById('sent-toast');
   var counterEl = document.getElementById('counter');
+  var revealEl = document.getElementById('reveal-countdown');
   var pendingBadge = document.getElementById('pending-badge');
   var startBtn = document.getElementById('start-btn');
   var retryBtn = document.getElementById('retry-btn');
@@ -40,6 +48,7 @@
   var chips = strip ? Array.prototype.slice.call(strip.querySelectorAll('.filter-chip')) : [];
 
   var stream = null;
+  var facing = 'environment'; // 'environment' = arrière, 'user' = avant
   var localCount = parseInt(localStorage.getItem(COUNT_KEY) || '0', 10);
 
   // ---- Session ----
@@ -66,6 +75,22 @@
     var left = Math.max(0, MAX_PHOTOS - localCount);
     counterEl.textContent = left + (left > 1 ? ' photos' : ' photo');
     show(counterEl);
+  }
+
+  // Compte à rebours jusqu'au reveal de la galerie, au format heures.minutes.
+  function updateReveal() {
+    if (!REVEAL) { hide(revealEl); return; }
+    var diff = REVEAL.getTime() - Date.now();
+    if (diff <= 0) {
+      revealEl.textContent = 'Galerie ouverte';
+      show(revealEl);
+      return;
+    }
+    var totalMin = Math.floor(diff / 60000);
+    var h = Math.floor(totalMin / 60);
+    var m = totalMin % 60;
+    revealEl.textContent = 'Reveal dans ' + h + '.' + (m < 10 ? '0' + m : m);
+    show(revealEl);
   }
 
   function showQuota() {
@@ -164,7 +189,7 @@
       hide(welcome); show(denied); return;
     }
     navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+      .getUserMedia({ video: { facingMode: { ideal: facing } }, audio: false })
       .then(function (s) {
         stream = s;
         video.srcObject = s;
@@ -173,7 +198,9 @@
         hide(welcome);
         hide(denied);
         show(viewfinder);
+        previewCanvas.classList.toggle('mirror', facing === 'user');
         updateCounter();
+        updateReveal();
         setFilter(currentFilter);
         var active = chips.filter(function (c) { return c.dataset.filter === currentFilter; })[0];
         if (active) requestAnimationFrame(function () { centerChip(active, false); });
@@ -181,6 +208,28 @@
         if (quotaReachedLocally()) showQuota();
       })
       .catch(function () { hide(welcome); show(denied); });
+  }
+
+  // Bascule caméra avant / arrière.
+  function flipCamera() {
+    if (!stream) return;
+    facing = facing === 'environment' ? 'user' : 'environment';
+    stream.getTracks().forEach(function (t) { t.stop(); });
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: { ideal: facing } }, audio: false })
+      .then(function (s) {
+        stream = s;
+        video.srcObject = s;
+        var p = video.play();
+        if (p && p.catch) p.catch(function () {});
+        previewCanvas.classList.toggle('mirror', facing === 'user');
+        startPreview();
+      })
+      .catch(function () {
+        // l'autre caméra a échoué : on rétablit la précédente
+        facing = facing === 'environment' ? 'user' : 'environment';
+        startCamera();
+      });
   }
 
   // ---- Capture ----
@@ -320,7 +369,10 @@
   if (startBtn) startBtn.addEventListener('click', startCamera);
   if (retryBtn) retryBtn.addEventListener('click', startCamera);
   if (shutter) shutter.addEventListener('click', capture);
+  if (flipBtn) flipBtn.addEventListener('click', flipCamera);
 
   setFilter(currentFilter);
   updatePendingBadge();
+  updateReveal();
+  setInterval(updateReveal, 30000);
 })();

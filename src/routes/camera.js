@@ -12,6 +12,7 @@ camera.get('/', async (c) => {
     welcomeMessage: cfg.welcomeMessage,
     filterDefault: cfg.filterDefault,
     maxPhotosPerSession: cfg.maxPhotosPerSession ?? '',
+    revealAt: cfg.revealAt ?? '',
   });
   return c.html(html);
 });

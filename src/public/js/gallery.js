@@ -111,16 +111,28 @@
   }
 
   // ---- Lightbox ----
+  // Photo paysage sur écran portrait → on la pivote pour la voir en grand.
+  function applyOrientation() {
+    var landscape = lbImg.naturalWidth > lbImg.naturalHeight;
+    var portraitScreen = window.innerHeight > window.innerWidth;
+    lbImg.classList.toggle('rotated', landscape && portraitScreen);
+  }
+  lbImg.addEventListener('load', applyOrientation);
+
+  function showCurrent() {
+    lbImg.classList.remove('rotated');
+    lbImg.src = '/photos/' + photos[currentIndex].id;
+  }
   function openLightbox(idx) {
     currentIndex = idx;
-    lbImg.src = '/photos/' + photos[idx].id;
+    showCurrent();
     lightbox.classList.remove('hidden');
   }
   function closeLightbox() { lightbox.classList.add('hidden'); lbImg.src = ''; }
   function nav(dir) {
     if (!photos.length) return;
     currentIndex = (currentIndex + dir + photos.length) % photos.length;
-    lbImg.src = '/photos/' + photos[currentIndex].id;
+    showCurrent();
   }
   if (lbClose) lbClose.addEventListener('click', closeLightbox);
   if (lbPrev) lbPrev.addEventListener('click', function (e) { e.stopPropagation(); nav(-1); });
@@ -132,6 +144,25 @@
     else if (e.key === 'ArrowLeft') nav(-1);
     else if (e.key === 'ArrowRight') nav(1);
   });
+  window.addEventListener('resize', function () {
+    if (!lightbox.classList.contains('hidden')) applyOrientation();
+  });
+
+  // Navigation au swipe (geste tactile) une fois la photo ouverte.
+  var touchX = 0, touchY = 0;
+  lightbox.addEventListener('touchstart', function (e) {
+    touchX = e.changedTouches[0].clientX;
+    touchY = e.changedTouches[0].clientY;
+  }, { passive: true });
+  lightbox.addEventListener('touchend', function (e) {
+    var dx = e.changedTouches[0].clientX - touchX;
+    var dy = e.changedTouches[0].clientY - touchY;
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) {
+      nav(dx < 0 ? 1 : -1); // swipe gauche → suivante
+    } else if (dy > 80 && Math.abs(dy) > Math.abs(dx)) {
+      closeLightbox(); // swipe vers le bas → fermer
+    }
+  }, { passive: true });
 
   // ---- Polling du statut ----
   function checkStatus(initial) {

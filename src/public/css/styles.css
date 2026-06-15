@@ -171,6 +171,10 @@ textarea.input {
   object-fit: cover;
   z-index: 2;
 }
+/* Caméra frontale : miroir naturel à l'aperçu (la capture reste non-miroir) */
+.preview-canvas.mirror {
+  transform: scaleX(-1);
+}
 .flash {
   position: absolute;
   inset: 0;
@@ -193,6 +197,7 @@ textarea.input {
   right: 0;
   display: flex;
   justify-content: center;
+  gap: 0.5rem;
   z-index: 5;
 }
 .counter {
@@ -215,8 +220,29 @@ textarea.input {
   z-index: 5;
 }
 .shutter-zone {
+  position: relative;
   display: flex;
   justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+.flip-btn {
+  position: absolute;
+  right: 2.5rem;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(240, 237, 232, 0.3);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--ease), transform var(--ease);
+}
+.flip-btn:active {
+  transform: scale(0.9);
 }
 
 /* Sélecteur de filtre swipeable */
@@ -359,6 +385,13 @@ textarea.input {
   max-width: 92vw;
   max-height: 88vh;
   object-fit: contain;
+  transition: transform 200ms ease;
+}
+/* Photo paysage pivotée pour remplir un écran portrait */
+.lightbox__img.rotated {
+  transform: rotate(90deg);
+  max-width: 92vh;
+  max-height: 92vw;
 }
 .lightbox__close,
 .lightbox__nav {
