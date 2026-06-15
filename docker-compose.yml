@@ -1,0 +1,19 @@
+services:
+  obscura:
+    build: .
+    container_name: obscura
+    restart: unless-stopped
+    ports:
+      - "3210:3000"
+    volumes:
+      - ./data:/data
+    environment:
+      - DATA_PATH=/data
+      - NODE_ENV=production
+      - PORT=3000
+      # Au premier démarrage uniquement : définit le mot de passe admin
+      # si config.json n'existe pas encore. À retirer ensuite.
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-changeme}
+      # URL publique (via Cloudflare Tunnel) : sert à générer le QR code.
+      # Laisse vide pour déduire automatiquement depuis l'en-tête Host.
+      - PUBLIC_URL=${PUBLIC_URL:-}

@@ -1,0 +1,326 @@
+/* Caméra invité : sélection du filtre (swipe), aperçu temps réel (vrai filtre),
+   capture → filtre → upload, avec file d'attente offline. */
+(function () {
+  'use strict';
+
+  var cfg = {};
+  try {
+    cfg = JSON.parse(document.getElementById('app-config').textContent);
+  } catch (e) { cfg = {}; }
+
+  var MAX_PHOTOS = cfg.maxPhotosPerSession && cfg.maxPhotosPerSession !== ''
+    ? parseInt(cfg.maxPhotosPerSession, 10) : null;
+  var MAX_SIDE = 1920;       // résolution max de la photo envoyée
+  var PREVIEW_MAX = 720;     // résolution de travail du viseur (perf)
+  var PREVIEW_FRAME_MS = 60; // throttle des filtres lourds (~16 fps)
+  var PENDING_KEY = 'wc_pending';
+  var COUNT_KEY = 'wc_count';
+
+  var currentFilter = (cfg.filterDefault && window.Filters && window.Filters.has(cfg.filterDefault))
+    ? cfg.filterDefault : 'raw';
+
+  // Éléments
+  var welcome = document.getElementById('welcome');
+  var viewfinder = document.getElementById('viewfinder');
+  var quota = document.getElementById('quota');
+  var denied = document.getElementById('denied');
+  var video = document.getElementById('video');
+  var previewCanvas = document.getElementById('preview-canvas');
+  var pctx = previewCanvas.getContext('2d');
+  var canvas = document.getElementById('work-canvas');
+  var flash = document.getElementById('flash');
+  var shutter = document.getElementById('shutter');
+  var toast = document.getElementById('sent-toast');
+  var counterEl = document.getElementById('counter');
+  var pendingBadge = document.getElementById('pending-badge');
+  var startBtn = document.getElementById('start-btn');
+  var retryBtn = document.getElementById('retry-btn');
+  var quotaMsg = document.getElementById('quota-message');
+  var strip = document.getElementById('filter-strip');
+  var chips = strip ? Array.prototype.slice.call(strip.querySelectorAll('.filter-chip')) : [];
+
+  var stream = null;
+  var localCount = parseInt(localStorage.getItem(COUNT_KEY) || '0', 10);
+
+  // ---- Session ----
+  function getSessionId() {
+    var id = localStorage.getItem('wc_session');
+    if (!id) {
+      id = (window.crypto && crypto.randomUUID)
+        ? crypto.randomUUID().replace(/-/g, '')
+        : 'sxxxxxxxxxxxxxxxx'.replace(/x/g, function () {
+            return Math.floor(Math.random() * 16).toString(16);
+          }) + Date.now().toString(16);
+      localStorage.setItem('wc_session', id);
+    }
+    return id;
+  }
+  var SESSION_ID = getSessionId();
+
+  // ---- UI helpers ----
+  function show(el) { el.classList.remove('hidden'); }
+  function hide(el) { el.classList.add('hidden'); }
+
+  function updateCounter() {
+    if (MAX_PHOTOS == null) { hide(counterEl); return; }
+    var left = Math.max(0, MAX_PHOTOS - localCount);
+    counterEl.textContent = left + (left > 1 ? ' photos' : ' photo');
+    show(counterEl);
+  }
+
+  function showQuota() {
+    stopPreview();
+    if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+    hide(viewfinder);
+    quotaMsg.textContent = 'Tu as utilisé tes ' + (MAX_PHOTOS || '') + ' photos. Merci.';
+    show(quota);
+  }
+
+  function quotaReachedLocally() {
+    return MAX_PHOTOS != null && localCount >= MAX_PHOTOS;
+  }
+
+  // ---- Sélecteur de filtre ----
+  function setFilter(name) {
+    if (!name) return;
+    currentFilter = name;
+    chips.forEach(function (chip) {
+      chip.classList.toggle('active', chip.dataset.filter === name);
+    });
+  }
+
+  function syncFilterFromScroll() {
+    if (!strip || !chips.length) return;
+    var center = strip.scrollLeft + strip.clientWidth / 2;
+    var best = null;
+    var bestDist = Infinity;
+    chips.forEach(function (chip) {
+      var chipCenter = chip.offsetLeft + chip.offsetWidth / 2;
+      var d = Math.abs(chipCenter - center);
+      if (d < bestDist) { bestDist = d; best = chip; }
+    });
+    if (best && best.dataset.filter !== currentFilter) setFilter(best.dataset.filter);
+  }
+
+  function centerChip(chip, smooth) {
+    if (!strip || !chip) return;
+    var target = chip.offsetLeft + chip.offsetWidth / 2 - strip.clientWidth / 2;
+    strip.scrollTo({ left: target, behavior: smooth ? 'smooth' : 'auto' });
+  }
+
+  if (strip) {
+    var scrollTimer = null;
+    strip.addEventListener('scroll', function () {
+      if (scrollTimer) clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(syncFilterFromScroll, 60);
+    });
+    chips.forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        setFilter(chip.dataset.filter);
+        centerChip(chip, true);
+      });
+    });
+  }
+
+  // ---- Aperçu temps réel (le viseur montre le vrai filtre) ----
+  var previewRunning = false;
+  var lastFrame = 0;
+
+  function sizePreview() {
+    var vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw || !vh) return false;
+    var scale = Math.min(1, PREVIEW_MAX / Math.max(vw, vh));
+    var w = Math.round(vw * scale);
+    var h = Math.round(vh * scale);
+    if (previewCanvas.width !== w || previewCanvas.height !== h) {
+      previewCanvas.width = w;
+      previewCanvas.height = h;
+    }
+    return true;
+  }
+
+  function previewLoop(ts) {
+    if (!previewRunning) return;
+    requestAnimationFrame(previewLoop);
+    // Le brut tourne à plein régime ; les filtres lourds sont throttlés.
+    if (currentFilter !== 'raw' && ts - lastFrame < PREVIEW_FRAME_MS) return;
+    lastFrame = ts;
+    if (!sizePreview()) return;
+    pctx.drawImage(video, 0, 0, previewCanvas.width, previewCanvas.height);
+    if (currentFilter !== 'raw') window.Filters.apply(previewCanvas, currentFilter);
+  }
+
+  function startPreview() {
+    if (previewRunning) return;
+    previewRunning = true;
+    lastFrame = 0;
+    requestAnimationFrame(previewLoop);
+  }
+  function stopPreview() { previewRunning = false; }
+
+  // ---- Caméra ----
+  function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      hide(welcome); show(denied); return;
+    }
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+      .then(function (s) {
+        stream = s;
+        video.srcObject = s;
+        var p = video.play();
+        if (p && p.catch) p.catch(function () {});
+        hide(welcome);
+        hide(denied);
+        show(viewfinder);
+        updateCounter();
+        setFilter(currentFilter);
+        var active = chips.filter(function (c) { return c.dataset.filter === currentFilter; })[0];
+        if (active) requestAnimationFrame(function () { centerChip(active, false); });
+        startPreview();
+        if (quotaReachedLocally()) showQuota();
+      })
+      .catch(function () { hide(welcome); show(denied); });
+  }
+
+  // ---- Capture ----
+  function fireFlash() {
+    flash.classList.remove('fire');
+    void flash.offsetWidth;
+    flash.classList.add('fire');
+  }
+  function showToast() {
+    toast.classList.add('show');
+    setTimeout(function () { toast.classList.remove('show'); }, 900);
+  }
+
+  function capture() {
+    if (!stream || quotaReachedLocally()) return;
+    var vw = video.videoWidth;
+    var vh = video.videoHeight;
+    if (!vw || !vh) return;
+
+    var scale = Math.min(1, MAX_SIDE / Math.max(vw, vh));
+    canvas.width = Math.round(vw * scale);
+    canvas.height = Math.round(vh * scale);
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Même filtre que l'aperçu, appliqué en pleine résolution.
+    var usedFilter = currentFilter;
+    window.Filters.apply(canvas, usedFilter);
+
+    fireFlash();
+    showToast();
+
+    canvas.toBlob(function (blob) {
+      if (blob) queueUpload(blob, usedFilter);
+    }, 'image/jpeg', 0.9);
+
+    localCount += 1;
+    localStorage.setItem(COUNT_KEY, String(localCount));
+    updateCounter();
+    if (quotaReachedLocally()) setTimeout(showQuota, 600);
+  }
+
+  // ---- Upload + file d'attente offline ----
+  function getPending() {
+    try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); }
+    catch (e) { return []; }
+  }
+  function setPending(arr) {
+    try { localStorage.setItem(PENDING_KEY, JSON.stringify(arr)); } catch (e) {}
+    updatePendingBadge();
+  }
+  function updatePendingBadge() {
+    var n = getPending().length;
+    if (n > 0) { pendingBadge.textContent = '↑ ' + n; show(pendingBadge); }
+    else hide(pendingBadge);
+  }
+  function blobToDataURL(blob, cb) {
+    var fr = new FileReader();
+    fr.onload = function () { cb(fr.result); };
+    fr.readAsDataURL(blob);
+  }
+  function dataURLToBlob(dataURL) {
+    var parts = dataURL.split(',');
+    var mime = parts[0].match(/:(.*?);/)[1];
+    var bin = atob(parts[1]);
+    var arr = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
+
+  function queueUpload(blob, filter) {
+    sendUpload(blob, filter, function (ok, data) {
+      if (ok) {
+        if (data && typeof data.count === 'number') {
+          localCount = data.count;
+          localStorage.setItem(COUNT_KEY, String(localCount));
+          updateCounter();
+        }
+      } else if (data === 'quota_exceeded') {
+        showQuota();
+      } else {
+        blobToDataURL(blob, function (dataURL) {
+          var p = getPending();
+          p.push({ data: dataURL, filter: filter, ts: Date.now() });
+          setPending(p);
+        });
+      }
+    });
+  }
+
+  function sendUpload(blob, filter, cb) {
+    var fd = new FormData();
+    fd.append('photo', blob, 'photo.jpg');
+    fd.append('sessionId', SESSION_ID);
+    fd.append('filter', filter);
+    fetch('/upload', { method: 'POST', body: fd })
+      .then(function (res) { return res.json().then(function (j) { return { status: res.status, body: j }; }); })
+      .then(function (r) {
+        if (r.status === 200 && r.body && r.body.ok) cb(true, r.body);
+        else if (r.body && r.body.error === 'quota_exceeded') cb(false, 'quota_exceeded');
+        else if (r.status === 429) cb(false, 'rate_limited');
+        else cb(false, (r.body && r.body.error) || 'error');
+      })
+      .catch(function () { cb(false, 'network'); });
+  }
+
+  function flushPending() {
+    var p = getPending();
+    if (!p.length) return;
+    var item = p[0];
+    var blob = dataURLToBlob(item.data);
+    var fd = new FormData();
+    fd.append('photo', blob, 'photo.jpg');
+    fd.append('sessionId', SESSION_ID);
+    fd.append('filter', item.filter || 'raw');
+    fetch('/upload', { method: 'POST', body: fd })
+      .then(function (res) { return res.json().then(function (j) { return { status: res.status, body: j }; }); })
+      .then(function (r) {
+        if ((r.status === 200 && r.body && r.body.ok) ||
+            (r.body && r.body.error === 'quota_exceeded')) {
+          var arr = getPending();
+          arr.shift();
+          setPending(arr);
+        }
+      })
+      .catch(function () {});
+  }
+  setInterval(flushPending, 5000);
+
+  // Met l'aperçu en pause quand l'onglet est masqué (économie batterie).
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) stopPreview();
+    else if (stream && !viewfinder.classList.contains('hidden')) startPreview();
+  });
+
+  // ---- Événements ----
+  if (startBtn) startBtn.addEventListener('click', startCamera);
+  if (retryBtn) retryBtn.addEventListener('click', startCamera);
+  if (shutter) shutter.addEventListener('click', capture);
+
+  setFilter(currentFilter);
+  updatePendingBadge();
+})();

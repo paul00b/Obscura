@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0A0A0A" />
+  <title>{{eventName}} — Diaporama</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body class="slideshow-body">
+  <script id="app-config" type="application/json">
+    {
+      "slideshowInterval": "{{slideshowInterval}}",
+      "slideshowOrder": "{{slideshowOrder}}"
+    }
+  </script>
+
+  <div id="stage" class="slideshow-stage">
+    <img id="slide-a" class="slide" alt="" />
+    <img id="slide-b" class="slide" alt="" />
+  </div>
+
+  <div id="paused" class="slideshow-paused hidden">en pause</div>
+  <p id="ss-empty" class="empty-state hidden">Aucune photo à afficher.</p>
+
+  <div class="progress"><div id="progress-bar" class="progress__bar"></div></div>
+
+  <script src="/js/slideshow.js"></script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0A0A0A" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="{{eventName}}" />
+  <title>{{eventName}}</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="icon" href="/icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body class="camera-body">
+  <script id="app-config" type="application/json">
+    {
+      "filterDefault": "{{filterDefault}}",
+      "maxPhotosPerSession": "{{maxPhotosPerSession}}"
+    }
+  </script>
+
+  <!-- Écran d'accueil : le tap démarre la caméra (geste utilisateur requis) -->
+  <section id="welcome" class="screen screen--center">
+    <h1 class="display">{{eventName}}</h1>
+    <p class="welcome-message">{{welcomeMessage}}</p>
+    <button id="start-btn" class="btn">Activer la caméra</button>
+  </section>
+
+  <!-- Viseur -->
+  <section id="viewfinder" class="screen hidden">
+    <video id="video" playsinline autoplay muted></video>
+    <canvas id="preview-canvas" class="preview-canvas"></canvas>
+    <div id="flash" class="flash"></div>
+
+    <div class="hud">
+      <div id="counter" class="counter hidden"></div>
+    </div>
+
+    <div class="controls">
+      <!-- Sélecteur de filtre : glisse horizontalement, le filtre centré est actif -->
+      <div id="filter-strip" class="filter-strip">
+        <button type="button" class="filter-chip" data-filter="raw">Naturel</button>
+        <button type="button" class="filter-chip" data-filter="grain">Grain</button>
+        <button type="button" class="filter-chip" data-filter="fade">Fade</button>
+        <button type="button" class="filter-chip" data-filter="noir">Noir</button>
+        <button type="button" class="filter-chip" data-filter="instant">Instant</button>
+      </div>
+
+      <div class="shutter-zone">
+        <button id="shutter" class="shutter" aria-label="Prendre une photo"></button>
+      </div>
+    </div>
+
+    <div id="sent-toast" class="toast hidden">envoyée</div>
+    <div id="pending-badge" class="pending-badge hidden"></div>
+  </section>
+
+  <!-- Quota atteint -->
+  <section id="quota" class="screen screen--center hidden">
+    <p class="big-message" id="quota-message">Tu as utilisé tes photos. Merci.</p>
+  </section>
+
+  <!-- Accès refusé -->
+  <section id="denied" class="screen screen--center hidden">
+    <p class="big-message">Accès à la caméra refusé.</p>
+    <p class="welcome-message">
+      Autorise l'accès à la caméra dans les réglages de ton navigateur, puis recharge la page.
+    </p>
+    <button id="retry-btn" class="btn">Réessayer</button>
+  </section>
+
+  <!-- Canvas de traitement (jamais affiché) -->
+  <canvas id="work-canvas" class="hidden"></canvas>
+
+  <script src="/js/pwa.js"></script>
+  <script src="/js/filters.js"></script>
+  <script src="/js/camera.js"></script>
+</body>
+</html>
