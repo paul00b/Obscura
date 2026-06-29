@@ -734,3 +734,48 @@ textarea.input {
   background: var(--danger);
   color: #fff;
 }
+
+/* --- Liste des galeries (dashboard multi-événements) --- */
+.events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.event-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+}
+.event-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.event-name {
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+.event-meta {
+  font-size: 0.85rem;
+}
+.event-link {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  word-break: break-all;
+}
+.event-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.sep {
+  border: none;
+  border-top: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+  margin: 18px 0;
+}

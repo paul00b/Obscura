@@ -1,7 +1,6 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { PHOTOS_DIR } from './config.js';
 
 const VALID_FILTERS = ['grain', 'fade', 'noir', 'instant', 'raw'];
 
@@ -32,11 +31,11 @@ function parseMeta(filename) {
   };
 }
 
-// Liste toutes les photos, triées (récent -> ancien par défaut).
-export async function listPhotos({ order = 'desc' } = {}) {
+// Liste les photos d'un dossier d'événement, triées (récent -> ancien par défaut).
+export async function listPhotos(dir, { order = 'desc' } = {}) {
   let files;
   try {
-    files = await fs.readdir(PHOTOS_DIR);
+    files = await fs.readdir(dir);
   } catch {
     return [];
   }
@@ -47,24 +46,25 @@ export async function listPhotos({ order = 'desc' } = {}) {
   return photos;
 }
 
-export async function savePhoto(buffer, filter, timestamp) {
+export async function savePhoto(dir, buffer, filter, timestamp) {
+  await fs.mkdir(dir, { recursive: true });
   const filename = buildFilename(filter, timestamp);
-  await fs.writeFile(path.join(PHOTOS_DIR, filename), buffer);
+  await fs.writeFile(path.join(dir, filename), buffer);
   return filename;
 }
 
-export async function deletePhoto(filename) {
+export async function deletePhoto(dir, filename) {
   if (!isValidPhotoName(filename)) return false;
   try {
-    await fs.unlink(path.join(PHOTOS_DIR, filename));
+    await fs.unlink(path.join(dir, filename));
     return true;
   } catch {
     return false;
   }
 }
 
-export function photoPath(filename) {
-  return path.join(PHOTOS_DIR, filename);
+export function photoPath(dir, filename) {
+  return path.join(dir, filename);
 }
 
 export { VALID_FILTERS };

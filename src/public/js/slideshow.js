@@ -6,6 +6,7 @@
   try { cfg = JSON.parse(document.getElementById('app-config').textContent); } catch (e) {}
   var INTERVAL = parseInt(cfg.slideshowInterval, 10) || 4000;
   var ORDER = cfg.slideshowOrder || 'random';
+  var BASE = cfg.base || '';
 
   var slideA = document.getElementById('slide-a');
   var slideB = document.getElementById('slide-b');
@@ -55,7 +56,7 @@
       activeSlide.classList.remove('active');
       swap();
     };
-    inactiveSlide.src = '/photos/' + p.id;
+    inactiveSlide.src = BASE + '/photos/' + p.id;
     resetProgress();
   }
 
@@ -90,7 +91,7 @@
 
   document.addEventListener('click', togglePause);
 
-  fetch('/api/photos')
+  fetch(BASE + '/api/photos')
     .then(function (r) { return r.json(); })
     .then(function (j) {
       if (j.ok && j.photos && j.photos.length) {

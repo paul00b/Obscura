@@ -5,6 +5,11 @@
   var cfg = {};
   try { cfg = JSON.parse(document.getElementById('app-config').textContent); } catch (e) {}
   var PREVIEW = cfg.preview === true;
+  var BASE = cfg.base || '';
+
+  // Lien de téléchargement global, propre à cette galerie.
+  var dlAll = document.getElementById('dl-all');
+  if (dlAll) dlAll.href = BASE + '/export';
 
   var lockedEl = document.getElementById('locked');
   var lockedMsg = document.getElementById('locked-message');
@@ -90,7 +95,7 @@
       var img = document.createElement('img');
       img.alt = '';
       img.loading = 'lazy';
-      img.dataset.src = '/photos/' + p.id;
+      img.dataset.src = BASE + '/photos/' + p.id;
       item.appendChild(img);
       item.addEventListener('click', function () { openLightbox(idx); });
       gridEl.appendChild(item);
@@ -102,7 +107,7 @@
   function showGallery() {
     lockedEl.classList.add('hidden');
     galleryEl.classList.remove('hidden');
-    fetch('/api/photos')
+    fetch(BASE + '/api/photos')
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (j.ok) { photos = j.photos || []; buildGrid(); }
@@ -114,7 +119,7 @@
   // Les photos s'affichent dans leur orientation native (paysage = paysage),
   // adaptées à l'écran (object-fit: contain) — pas de rotation forcée.
   function showCurrent() {
-    lbImg.src = '/photos/' + photos[currentIndex].id;
+    lbImg.src = BASE + '/photos/' + photos[currentIndex].id;
   }
   function openLightbox(idx) {
     currentIndex = idx;
@@ -155,7 +160,7 @@
 
   // ---- Polling du statut ----
   function checkStatus(initial) {
-    fetch('/api/status')
+    fetch(BASE + '/api/status')
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (!j.locked) {

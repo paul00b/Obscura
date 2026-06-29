@@ -13,8 +13,13 @@
   var MAX_SIDE = 1920;       // résolution max de la photo envoyée
   var PREVIEW_MAX = 900;     // résolution de travail du viseur filtré
   var PREVIEW_FRAME_MS = 40; // throttle des filtres (~25 fps)
-  var PENDING_KEY = 'wc_pending';
-  var COUNT_KEY = 'wc_count';
+  // Chaque galerie a son propre lien : on cloisonne quota / file d'attente /
+  // session par slug pour qu'elles ne se mélangent pas dans le même navigateur.
+  var BASE = cfg.base || '';
+  var NS = cfg.slug ? ':' + cfg.slug : '';
+  var PENDING_KEY = 'wc_pending' + NS;
+  var COUNT_KEY = 'wc_count' + NS;
+  var SESSION_KEY = 'wc_session' + NS;
 
   var currentFilter = (cfg.filterDefault && window.Filters && window.Filters.has(cfg.filterDefault))
     ? cfg.filterDefault : 'raw';
@@ -53,14 +58,14 @@
 
   // ---- Session ----
   function getSessionId() {
-    var id = localStorage.getItem('wc_session');
+    var id = localStorage.getItem(SESSION_KEY);
     if (!id) {
       id = (window.crypto && crypto.randomUUID)
         ? crypto.randomUUID().replace(/-/g, '')
         : 'sxxxxxxxxxxxxxxxx'.replace(/x/g, function () {
             return Math.floor(Math.random() * 16).toString(16);
           }) + Date.now().toString(16);
-      localStorage.setItem('wc_session', id);
+      localStorage.setItem(SESSION_KEY, id);
     }
     return id;
   }
@@ -364,7 +369,7 @@
     fd.append('photo', blob, 'photo.jpg');
     fd.append('sessionId', SESSION_ID);
     fd.append('filter', filter);
-    fetch('/upload', { method: 'POST', body: fd })
+    fetch(BASE + '/upload', { method: 'POST', body: fd })
       .then(function (res) { return res.json().then(function (j) { return { status: res.status, body: j }; }); })
       .then(function (r) {
         if (r.status === 200 && r.body && r.body.ok) cb(true, r.body);
@@ -384,7 +389,7 @@
     fd.append('photo', blob, 'photo.jpg');
     fd.append('sessionId', SESSION_ID);
     fd.append('filter', item.filter || 'raw');
-    fetch('/upload', { method: 'POST', body: fd })
+    fetch(BASE + '/upload', { method: 'POST', body: fd })
       .then(function (res) { return res.json().then(function (j) { return { status: res.status, body: j }; }); })
       .then(function (r) {
         if ((r.status === 200 && r.body && r.body.ok) ||

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0A0A0A" />
+  <title>{{eventName}} — Gestion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body class="admin-body dashboard">
+  <script id="app-config" type="application/json">
+    {
+      "slug": "{{slug}}",
+      "base": "/admin/events/{{slug}}",
+      "eventUrl": "{{eventUrl}}",
+      "eventName": {{{jsonEventName}}},
+      "eventDate": "{{eventDate}}",
+      "welcomeMessage": {{{jsonWelcomeMessage}}},
+      "filterDefault": "{{filterDefault}}",
+      "galleryLocked": {{galleryLocked}},
+      "revealAt": "{{revealAt}}",
+      "maxPhotosPerSession": "{{maxPhotosPerSession}}",
+      "slideshowInterval": "{{slideshowInterval}}",
+      "slideshowOrder": "{{slideshowOrder}}",
+      "revealed": {{revealed}},
+      "created": {{created}},
+      "saved": {{saved}}
+    }
+  </script>
+
+  <header class="dash-header">
+    <h1 class="display">{{eventName}}</h1>
+    <nav class="dash-nav">
+      <a class="link" href="/admin/dashboard">← Galeries</a>
+      <a class="link" href="/admin/events/{{slug}}/gallery-preview" target="_blank">Preview</a>
+      <a class="link" href="/e/{{slug}}/slideshow" target="_blank">Diaporama</a>
+    </nav>
+  </header>
+
+  <div id="banner" class="banner hidden"></div>
+
+  <div class="dash-grid">
+
+    <!-- Lien & QR -->
+    <section class="card">
+      <h2 class="card-title">Lien à partager</h2>
+      <p class="muted"><span id="event-url"></span></p>
+      <button id="copy-link" type="button" class="btn btn--small">Copier le lien</button>
+      <img id="qr-img" class="qr" src="/admin/events/{{slug}}/qrcode" alt="QR code" />
+      <a class="btn" href="/admin/events/{{slug}}/qrcode?download=1" download>Télécharger le QR (PNG)</a>
+    </section>
+
+    <!-- Statistiques -->
+    <section class="card">
+      <h2 class="card-title">Statistiques</h2>
+      <div class="stats">
+        <div class="stat"><span class="stat-num" id="stat-photos">—</span><span class="stat-label">photos</span></div>
+        <div class="stat"><span class="stat-num" id="stat-sessions">—</span><span class="stat-label">invités actifs</span></div>
+      </div>
+      <div class="last-photo">
+        <span class="muted">Dernière photo&nbsp;:</span>
+        <span id="stat-last">—</span>
+        <img id="stat-last-thumb" class="last-thumb hidden" alt="Dernière photo" />
+      </div>
+    </section>
+
+    <!-- Contrôle galerie -->
+    <section class="card">
+      <h2 class="card-title">Contrôle de la galerie</h2>
+      <div id="reveal-state" class="reveal-state"></div>
+      <form method="POST" action="/admin/events/{{slug}}/config" class="form" id="gallery-form">
+        <label class="toggle">
+          <input type="checkbox" name="galleryLocked" id="f-galleryLocked" />
+          <span>Galerie verrouillée</span>
+        </label>
+        <label class="field">
+          <span class="field-label">Reveal automatique</span>
+          <input type="datetime-local" name="revealAt" id="f-revealAt" class="input" />
+        </label>
+        <label class="field">
+          <span class="field-label">Photos max par invité (vide = illimité)</span>
+          <input type="number" name="maxPhotosPerSession" id="f-maxPhotos" class="input" min="1" />
+        </label>
+        <label class="field">
+          <span class="field-label">Intervalle diaporama : <b id="ss-val"></b> ms</span>
+          <input type="range" name="slideshowInterval" id="f-ssInterval" min="2000" max="10000" step="500" class="range" />
+        </label>
+        <label class="field">
+          <span class="field-label">Ordre du diaporama</span>
+          <select name="slideshowOrder" id="f-ssOrder" class="input">
+            <option value="random">Aléatoire</option>
+            <option value="chronological">Chronologique</option>
+          </select>
+        </label>
+        <button type="submit" class="btn">Enregistrer</button>
+      </form>
+    </section>
+
+    <!-- Paramètres événement -->
+    <section class="card">
+      <h2 class="card-title">Paramètres de la galerie</h2>
+      <form method="POST" action="/admin/events/{{slug}}/config" class="form" id="event-form">
+        <label class="field">
+          <span class="field-label">Nom</span>
+          <input type="text" name="eventName" id="f-eventName" class="input" />
+        </label>
+        <label class="field">
+          <span class="field-label">Date</span>
+          <input type="date" name="eventDate" id="f-eventDate" class="input" />
+        </label>
+        <label class="field">
+          <span class="field-label">Message d'accueil</span>
+          <textarea name="welcomeMessage" id="f-welcome" class="input" rows="3"></textarea>
+        </label>
+        <label class="field">
+          <span class="field-label">Filtre par défaut</span>
+          <select name="filterDefault" id="f-filter" class="input">
+            <option value="grain">Grain</option>
+            <option value="fade">Fade</option>
+            <option value="noir">Noir</option>
+            <option value="instant">Instant</option>
+            <option value="raw">Raw</option>
+          </select>
+        </label>
+        <button type="submit" class="btn">Enregistrer</button>
+      </form>
+    </section>
+
+    <!-- Export & suppression -->
+    <section class="card">
+      <h2 class="card-title">Export</h2>
+      <a class="btn" href="/admin/events/{{slug}}/export">Télécharger toutes les photos (.zip)</a>
+      <hr class="sep" />
+      <h2 class="card-title">Zone de danger</h2>
+      <form method="POST" action="/admin/events/{{slug}}/delete" id="delete-form">
+        <button type="submit" class="btn btn--danger">Supprimer cette galerie</button>
+      </form>
+    </section>
+
+    <!-- Modération -->
+    <section class="card card--wide">
+      <h2 class="card-title">Modération</h2>
+      <div class="mod-toolbar">
+        <label class="field field--inline">
+          <span class="field-label">Filtrer&nbsp;:</span>
+          <select id="mod-filter" class="input">
+            <option value="">Tous les filtres</option>
+            <option value="grain">Grain</option>
+            <option value="fade">Fade</option>
+            <option value="noir">Noir</option>
+            <option value="instant">Instant</option>
+            <option value="raw">Raw</option>
+          </select>
+        </label>
+        <button id="mod-refresh" class="btn btn--small">Rafraîchir</button>
+      </div>
+      <div id="mod-grid" class="mod-grid"></div>
+      <p id="mod-empty" class="empty-state hidden">Aucune photo.</p>
+    </section>
+
+  </div>
+
+  <script src="/js/admin-event.js"></script>
+</body>
+</html>

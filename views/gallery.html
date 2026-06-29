@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>{{eventName}} — Galerie</title>
-  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="manifest" href="{{base}}/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   <link rel="icon" href="/icons/icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -17,7 +17,7 @@
 </head>
 <body class="gallery-body">
   <script id="app-config" type="application/json">
-    { "revealAt": "{{revealAt}}", "preview": {{preview}} }
+    { "base": "{{base}}", "revealAt": "{{revealAt}}", "preview": {{preview}} }
   </script>
 
   <!-- Écran "verrouillé" avant le reveal -->
@@ -31,7 +31,7 @@
   <main id="gallery" class="gallery hidden">
     <header class="gallery-header">
       <h1 class="display">{{eventName}}</h1>
-      <a class="btn gallery-download" href="/export" download>Télécharger toutes les photos</a>
+      <a id="dl-all" class="btn gallery-download" href="#" download>Télécharger toutes les photos</a>
     </header>
     <div id="grid" class="grid"></div>
     <p id="empty" class="empty-state hidden">Aucune photo pour le moment.</p>

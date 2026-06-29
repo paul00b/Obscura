@@ -1,8 +1,7 @@
 /* Service worker minimal : installabilité PWA + shell hors-ligne.
    On ne met JAMAIS en cache les uploads, photos, API ou pages admin. */
-var CACHE = 'obscura-v6';
+var CACHE = 'obscura-v7';
 var SHELL = [
-  '/',
   '/css/styles.css',
   '/js/filters.js',
   '/js/camera.js',
@@ -40,10 +39,11 @@ self.addEventListener('fetch', function (e) {
 
   var url = new URL(req.url);
   // Ne pas intercepter : upload, photos, API, admin → toujours le réseau.
+  // (Les galeries vivent sous /e/<slug>/… : on cherche le segment, pas le préfixe.)
   if (
-    url.pathname.startsWith('/upload') ||
-    url.pathname.startsWith('/photos/') ||
-    url.pathname.startsWith('/api/') ||
+    url.pathname.indexOf('/upload') !== -1 ||
+    url.pathname.indexOf('/photos/') !== -1 ||
+    url.pathname.indexOf('/api/') !== -1 ||
     url.pathname.startsWith('/admin')
   ) {
     return;

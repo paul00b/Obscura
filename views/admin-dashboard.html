@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#0A0A0A" />
-  <title>Dashboard — {{eventName}}</title>
+  <title>Dashboard — Obscura</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
@@ -12,27 +12,12 @@
 </head>
 <body class="admin-body dashboard">
   <script id="app-config" type="application/json">
-    {
-      "eventName": {{{jsonEventName}}},
-      "eventDate": "{{eventDate}}",
-      "welcomeMessage": {{{jsonWelcomeMessage}}},
-      "filterDefault": "{{filterDefault}}",
-      "galleryLocked": {{galleryLocked}},
-      "revealAt": "{{revealAt}}",
-      "maxPhotosPerSession": "{{maxPhotosPerSession}}",
-      "slideshowInterval": "{{slideshowInterval}}",
-      "slideshowOrder": "{{slideshowOrder}}",
-      "maxPhotoSizeMb": "{{maxPhotoSizeMb}}",
-      "revealed": {{revealed}},
-      "publicUrl": "{{publicUrl}}"
-    }
+    { "events": {{{jsonEvents}}}, "saved": {{saved}} }
   </script>
 
   <header class="dash-header">
-    <h1 class="display">Dashboard</h1>
+    <h1 class="display">Mes galeries</h1>
     <nav class="dash-nav">
-      <a class="link" href="/admin/gallery-preview" target="_blank">Preview galerie</a>
-      <a class="link" href="/slideshow" target="_blank">Diaporama</a>
       <a class="link" href="/admin/logout">Déconnexion</a>
     </nav>
   </header>
@@ -41,104 +26,44 @@
 
   <div class="dash-grid">
 
-    <!-- Statistiques -->
-    <section class="card">
-      <h2 class="card-title">Statistiques</h2>
-      <div class="stats">
-        <div class="stat"><span class="stat-num" id="stat-photos">—</span><span class="stat-label">photos</span></div>
-        <div class="stat"><span class="stat-num" id="stat-sessions">—</span><span class="stat-label">invités actifs</span></div>
-      </div>
-      <div class="last-photo">
-        <span class="muted">Dernière photo&nbsp;:</span>
-        <span id="stat-last">—</span>
-        <img id="stat-last-thumb" class="last-thumb hidden" alt="Dernière photo" />
-      </div>
+    <!-- Liste des galeries -->
+    <section class="card card--wide">
+      <h2 class="card-title">Galeries</h2>
+      <div id="events-list" class="events-list"></div>
+      <p id="events-empty" class="empty-state hidden">Aucune galerie pour l'instant. Crées-en une ci-dessous.</p>
     </section>
 
-    <!-- Contrôle galerie -->
+    <!-- Création d'une galerie -->
     <section class="card">
-      <h2 class="card-title">Contrôle de la galerie</h2>
-      <div id="reveal-state" class="reveal-state"></div>
-      <form method="POST" action="/admin/config" class="form" id="gallery-form">
-        <label class="toggle">
-          <input type="checkbox" name="galleryLocked" id="f-galleryLocked" />
-          <span>Galerie verrouillée</span>
-        </label>
+      <h2 class="card-title">Nouvelle galerie</h2>
+      <form method="POST" action="/admin/events" class="form">
         <label class="field">
-          <span class="field-label">Reveal automatique</span>
-          <input type="datetime-local" name="revealAt" id="f-revealAt" class="input" />
-        </label>
-        <label class="field">
-          <span class="field-label">Photos max par invité (vide = illimité)</span>
-          <input type="number" name="maxPhotosPerSession" id="f-maxPhotos" class="input" min="1" />
-        </label>
-        <label class="field">
-          <span class="field-label">Intervalle diaporama : <b id="ss-val"></b> ms</span>
-          <input type="range" name="slideshowInterval" id="f-ssInterval" min="2000" max="10000" step="500" class="range" />
-        </label>
-        <label class="field">
-          <span class="field-label">Ordre du diaporama</span>
-          <select name="slideshowOrder" id="f-ssOrder" class="input">
-            <option value="random">Aléatoire</option>
-            <option value="chronological">Chronologique</option>
-          </select>
-        </label>
-        <button type="submit" class="btn">Enregistrer</button>
-      </form>
-    </section>
-
-    <!-- Paramètres événement -->
-    <section class="card">
-      <h2 class="card-title">Paramètres de l'événement</h2>
-      <form method="POST" action="/admin/config" class="form" id="event-form">
-        <label class="field">
-          <span class="field-label">Nom de l'événement</span>
-          <input type="text" name="eventName" id="f-eventName" class="input" />
+          <span class="field-label">Nom (soirée, anniversaire, mariage…)</span>
+          <input type="text" name="eventName" class="input" placeholder="Soirée chez Paul" required />
         </label>
         <label class="field">
           <span class="field-label">Date de l'événement</span>
-          <input type="date" name="eventDate" id="f-eventDate" class="input" />
+          <input type="date" name="eventDate" class="input" />
         </label>
         <label class="field">
           <span class="field-label">Message d'accueil</span>
-          <textarea name="welcomeMessage" id="f-welcome" class="input" rows="3"></textarea>
+          <textarea name="welcomeMessage" class="input" rows="2" placeholder="Prends une photo, elle rejoindra la galerie."></textarea>
         </label>
         <label class="field">
-          <span class="field-label">Filtre par défaut</span>
-          <select name="filterDefault" id="f-filter" class="input">
-            <option value="grain">Grain</option>
-            <option value="fade">Fade</option>
-            <option value="noir">Noir</option>
-            <option value="instant">Instant</option>
-            <option value="raw">Raw</option>
-          </select>
+          <span class="field-label">Reveal automatique (vide = ouverte tout de suite si déverrouillée)</span>
+          <input type="datetime-local" name="revealAt" class="input" />
         </label>
-        <label class="field">
-          <span class="field-label">Taille max par photo (Mo)</span>
-          <input type="number" name="maxPhotoSizeMb" id="f-maxSize" class="input" min="1" max="50" />
+        <label class="toggle">
+          <input type="checkbox" name="galleryLocked" checked />
+          <span>Galerie verrouillée jusqu'au reveal</span>
         </label>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn">Créer le lien</button>
       </form>
     </section>
 
-    <!-- QR code -->
+    <!-- Mot de passe admin (global) -->
     <section class="card">
-      <h2 class="card-title">QR Code</h2>
-      <p class="muted">Pointe vers&nbsp;: <span id="qr-url"></span></p>
-      <img id="qr-img" class="qr" src="/admin/qrcode" alt="QR code" />
-      <a class="btn" href="/admin/qrcode?download=1" download>Télécharger en PNG</a>
-    </section>
-
-    <!-- Export -->
-    <section class="card">
-      <h2 class="card-title">Export</h2>
-      <a class="btn" href="/admin/export">Télécharger toutes les photos (.zip)</a>
-      <a class="btn" href="/admin/config.json">Télécharger la config (.json)</a>
-    </section>
-
-    <!-- Sécurité -->
-    <section class="card">
-      <h2 class="card-title">Mot de passe</h2>
+      <h2 class="card-title">Mot de passe admin</h2>
       <form id="password-form" class="form">
         <label class="field">
           <span class="field-label">Mot de passe actuel</span>
@@ -152,29 +77,8 @@
       </form>
     </section>
 
-    <!-- Modération -->
-    <section class="card card--wide">
-      <h2 class="card-title">Modération</h2>
-      <div class="mod-toolbar">
-        <label class="field field--inline">
-          <span class="field-label">Filtrer&nbsp;:</span>
-          <select id="mod-filter" class="input">
-            <option value="">Tous les filtres</option>
-            <option value="grain">Grain</option>
-            <option value="fade">Fade</option>
-            <option value="noir">Noir</option>
-            <option value="instant">Instant</option>
-            <option value="raw">Raw</option>
-          </select>
-        </label>
-        <button id="mod-refresh" class="btn btn--small">Rafraîchir</button>
-      </div>
-      <div id="mod-grid" class="mod-grid"></div>
-      <p id="mod-empty" class="empty-state hidden">Aucune photo.</p>
-    </section>
-
   </div>
 
-  <script src="/js/admin.js"></script>
+  <script src="/js/admin-dashboard.js"></script>
 </body>
 </html>

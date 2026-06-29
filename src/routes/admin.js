@@ -2,28 +2,21 @@ import { Hono } from 'hono';
 import { Readable } from 'node:stream';
 import archiver from 'archiver';
 import QRCode from 'qrcode';
+import { getConfig, verifyAdminPassword, setAdminPassword } from '../lib/config.js';
 import {
-  getConfig,
-  updateConfig,
-  verifyAdminPassword,
-  setAdminPassword,
-  isRevealed,
-} from '../lib/config.js';
+  listEvents,
+  getEvent,
+  createEvent,
+  updateEvent,
+  deleteEvent,
+  isEventRevealed,
+  photosDir,
+  sessionsDir,
+} from '../lib/events.js';
 import { renderView } from '../lib/views.js';
-import {
-  listPhotos,
-  deletePhoto,
-  isValidPhotoName,
-  photoPath,
-  VALID_FILTERS,
-} from '../lib/photos.js';
+import { listPhotos, deletePhoto, isValidPhotoName, photoPath, VALID_FILTERS } from '../lib/photos.js';
 import { countSessions } from '../lib/session.js';
-import {
-  isAdmin,
-  startAdminSession,
-  endAdminSession,
-  requireAdmin,
-} from '../lib/auth.js';
+import { isAdmin, startAdminSession, endAdminSession, requireAdmin } from '../lib/auth.js';
 
 const admin = new Hono();
 
@@ -33,21 +26,20 @@ function baseUrl(c) {
   const host = c.req.header('host') || 'localhost';
   return `${proto}://${host}`;
 }
+function eventUrl(c, slug) {
+  return baseUrl(c) + '/e/' + slug;
+}
 
 // ---- Auth ----
-
-// GET /admin → login (ou redirige si déjà connecté)
 admin.get('/admin', async (c) => {
   if (isAdmin(c)) return c.redirect('/admin/dashboard');
   const html = await renderView('admin-login', { error: '' });
   return c.html(html);
 });
 
-// POST /admin/login
 admin.post('/admin/login', async (c) => {
   const body = await c.req.parseBody();
-  const password = body.password || '';
-  if (verifyAdminPassword(password)) {
+  if (verifyAdminPassword(body.password || '')) {
     startAdminSession(c);
     return c.redirect('/admin/dashboard');
   }
@@ -55,67 +47,69 @@ admin.post('/admin/login', async (c) => {
   return c.html(html, 401);
 });
 
-// GET /admin/logout
 admin.get('/admin/logout', (c) => {
   endAdminSession(c);
   return c.redirect('/admin');
 });
 
-// ---- Tout ce qui suit est protégé ----
-admin.use('/admin/dashboard', requireAdmin);
+// ---- Tout le reste est protégé ----
 admin.use('/admin/*', async (c, next) => {
-  // /admin, /admin/login, /admin/logout déjà gérés au-dessus.
   const p = c.req.path;
   if (p === '/admin' || p === '/admin/login' || p === '/admin/logout') return next();
   return requireAdmin(c, next);
 });
 
-// GET /admin/dashboard
+// Middleware : résout l'événement pour les routes /admin/events/:slug/*
+async function withEvent(c, next) {
+  const ev = await getEvent(c.req.param('slug'));
+  if (!ev) return c.text('Galerie introuvable.', 404);
+  c.set('event', ev);
+  return next();
+}
+
+// ---- Dashboard : liste des galeries + création ----
 admin.get('/admin/dashboard', async (c) => {
-  const cfg = getConfig();
+  const events = await listEvents();
+  const rows = await Promise.all(
+    events.map(async (ev) => {
+      const photos = await listPhotos(photosDir(ev.slug), { order: 'desc' });
+      return {
+        slug: ev.slug,
+        name: ev.eventName,
+        url: eventUrl(c, ev.slug),
+        revealed: isEventRevealed(ev),
+        count: photos.length,
+        createdAt: ev.createdAt || '',
+      };
+    })
+  );
   const html = await renderView('admin-dashboard', {
-    eventName: cfg.eventName,
-    jsonEventName: JSON.stringify(cfg.eventName),
-    jsonWelcomeMessage: JSON.stringify(cfg.welcomeMessage),
-    eventDate: cfg.eventDate,
-    welcomeMessage: cfg.welcomeMessage,
-    filterDefault: cfg.filterDefault,
-    galleryLocked: cfg.galleryLocked ? 'true' : 'false',
-    revealAt: cfg.revealAt,
-    maxPhotosPerSession: cfg.maxPhotosPerSession ?? '',
-    slideshowInterval: cfg.slideshowInterval,
-    slideshowOrder: cfg.slideshowOrder,
-    maxPhotoSizeMb: cfg.maxPhotoSizeMb,
-    revealed: isRevealed() ? 'true' : 'false',
-    publicUrl: baseUrl(c),
+    jsonEvents: JSON.stringify(rows),
+    saved: c.req.query('saved') ? 'true' : 'false',
   });
   return c.html(html);
 });
 
-// POST /admin/config → mise à jour config (form-encoded ou JSON)
-admin.post('/admin/config', async (c) => {
-  let patch;
-  const ct = c.req.header('content-type') || '';
-  if (ct.includes('application/json')) {
-    patch = await c.req.json();
-  } else {
-    patch = await c.req.parseBody();
-    // Une checkbox non cochée n'est pas envoyée : on force la valeur.
-    patch.galleryLocked = 'galleryLocked' in patch;
-  }
-  await updateConfig(patch);
-  if (ct.includes('application/json')) return c.json({ ok: true });
-  return c.redirect('/admin/dashboard?saved=1');
+// POST /admin/events → créer une galerie
+admin.post('/admin/events', async (c) => {
+  const body = await c.req.parseBody();
+  const ev = await createEvent({
+    eventName: (body.eventName && String(body.eventName).trim()) || 'Galerie sans nom',
+    eventDate: body.eventDate || '',
+    revealAt: body.revealAt || '',
+    welcomeMessage: body.welcomeMessage || undefined,
+    galleryLocked: 'galleryLocked' in body,
+  });
+  return c.redirect('/admin/events/' + ev.slug + '?created=1');
 });
 
-// POST /admin/password → changement de mot de passe
+// POST /admin/password → mot de passe admin (global)
 admin.post('/admin/password', async (c) => {
   const body = await c.req.parseBody();
-  const current = body.current || '';
-  const next = body.next || '';
-  if (!verifyAdminPassword(current)) {
+  if (!verifyAdminPassword(body.current || '')) {
     return c.json({ ok: false, error: 'wrong_current' }, 401);
   }
+  const next = body.next || '';
   if (typeof next !== 'string' || next.length < 6) {
     return c.json({ ok: false, error: 'too_short' }, 400);
   }
@@ -123,10 +117,54 @@ admin.post('/admin/password', async (c) => {
   return c.json({ ok: true });
 });
 
-// GET /admin/photos → toutes les photos (sans restriction de reveal)
-admin.get('/admin/photos', async (c) => {
+// ---- Gestion d'une galerie ----
+admin.get('/admin/events/:slug', withEvent, async (c) => {
+  const ev = c.get('event');
+  const html = await renderView('admin-event', {
+    slug: ev.slug,
+    eventName: ev.eventName,
+    jsonEventName: JSON.stringify(ev.eventName),
+    jsonWelcomeMessage: JSON.stringify(ev.welcomeMessage),
+    eventDate: ev.eventDate || '',
+    welcomeMessage: ev.welcomeMessage,
+    filterDefault: ev.filterDefault,
+    galleryLocked: ev.galleryLocked ? 'true' : 'false',
+    revealAt: ev.revealAt || '',
+    maxPhotosPerSession: ev.maxPhotosPerSession ?? '',
+    slideshowInterval: ev.slideshowInterval,
+    slideshowOrder: ev.slideshowOrder,
+    revealed: isEventRevealed(ev) ? 'true' : 'false',
+    eventUrl: eventUrl(c, ev.slug),
+    created: c.req.query('created') ? 'true' : 'false',
+    saved: c.req.query('saved') ? 'true' : 'false',
+  });
+  return c.html(html);
+});
+
+admin.post('/admin/events/:slug/config', withEvent, async (c) => {
+  const ev = c.get('event');
+  let patch;
+  const ct = c.req.header('content-type') || '';
+  if (ct.includes('application/json')) {
+    patch = await c.req.json();
+  } else {
+    patch = await c.req.parseBody();
+    patch.galleryLocked = 'galleryLocked' in patch;
+  }
+  await updateEvent(ev.slug, patch);
+  if (ct.includes('application/json')) return c.json({ ok: true });
+  return c.redirect('/admin/events/' + ev.slug + '?saved=1');
+});
+
+admin.post('/admin/events/:slug/delete', withEvent, async (c) => {
+  await deleteEvent(c.get('event').slug);
+  return c.redirect('/admin/dashboard?saved=1');
+});
+
+admin.get('/admin/events/:slug/photos', withEvent, async (c) => {
+  const ev = c.get('event');
   const filterParam = c.req.query('filter');
-  let photos = await listPhotos({ order: 'desc' });
+  let photos = await listPhotos(photosDir(ev.slug), { order: 'desc' });
   if (filterParam && VALID_FILTERS.includes(filterParam)) {
     photos = photos.filter((p) => p.filter === filterParam);
   }
@@ -136,10 +174,10 @@ admin.get('/admin/photos', async (c) => {
   });
 });
 
-// GET /admin/stats
-admin.get('/admin/stats', async (c) => {
-  const photos = await listPhotos({ order: 'desc' });
-  const sessions = await countSessions();
+admin.get('/admin/events/:slug/stats', withEvent, async (c) => {
+  const ev = c.get('event');
+  const photos = await listPhotos(photosDir(ev.slug), { order: 'desc' });
+  const sessions = await countSessions(sessionsDir(ev.slug));
   const byFilter = {};
   for (const p of photos) byFilter[p.filter] = (byFilter[p.filter] || 0) + 1;
   const last = photos[0] || null;
@@ -152,39 +190,22 @@ admin.get('/admin/stats', async (c) => {
   });
 });
 
-// GET /admin/gallery-preview → galerie telle que les invités la verront
-admin.get('/admin/gallery-preview', async (c) => {
-  const cfg = getConfig();
-  const html = await renderView('gallery', {
-    eventName: cfg.eventName,
-    revealAt: cfg.revealAt,
-    preview: 'true',
-  });
-  return c.html(html);
-});
-
-// POST /admin/delete/:id → suppression d'une photo
-admin.post('/admin/delete/:id', async (c) => {
+admin.post('/admin/events/:slug/delete-photo/:id', withEvent, async (c) => {
+  const ev = c.get('event');
   const id = c.req.param('id');
-  if (!isValidPhotoName(id)) {
-    return c.json({ ok: false, error: 'invalid_id' }, 400);
-  }
-  const ok = await deletePhoto(id);
+  if (!isValidPhotoName(id)) return c.json({ ok: false, error: 'invalid_id' }, 400);
+  const ok = await deletePhoto(photosDir(ev.slug), id);
   return c.json({ ok });
 });
 
-// GET /admin/export → zip de toutes les photos (streamé)
-admin.get('/admin/export', async (c) => {
-  const photos = await listPhotos({ order: 'asc' });
+admin.get('/admin/events/:slug/export', withEvent, async (c) => {
+  const ev = c.get('event');
+  const dir = photosDir(ev.slug);
+  const photos = await listPhotos(dir, { order: 'asc' });
   const archive = archiver('zip', { zlib: { level: 6 } });
-
-  for (const p of photos) {
-    archive.file(photoPath(p.filename), { name: p.filename });
-  }
+  for (const p of photos) archive.file(photoPath(dir, p.filename), { name: p.filename });
   archive.finalize();
-
-  const webStream = Readable.toWeb(archive);
-  return new Response(webStream, {
+  return new Response(Readable.toWeb(archive), {
     headers: {
       'Content-Type': 'application/zip',
       'Content-Disposition': 'attachment; filename="obscura-photos.zip"',
@@ -192,17 +213,20 @@ admin.get('/admin/export', async (c) => {
   });
 });
 
-// GET /admin/config.json → téléchargement de la config (sans le hash)
-admin.get('/admin/config.json', (c) => {
-  const cfg = { ...getConfig() };
-  delete cfg.adminPasswordHash;
-  c.header('Content-Disposition', 'attachment; filename="config.json"');
-  return c.json(cfg);
+admin.get('/admin/events/:slug/gallery-preview', withEvent, async (c) => {
+  const ev = c.get('event');
+  const html = await renderView('gallery', {
+    base: '/e/' + ev.slug,
+    eventName: ev.eventName,
+    revealAt: ev.revealAt,
+    preview: 'true',
+  });
+  return c.html(html);
 });
 
-// GET /admin/qrcode → QR code PNG pointant vers la racine
-admin.get('/admin/qrcode', async (c) => {
-  const url = baseUrl(c) + '/';
+admin.get('/admin/events/:slug/qrcode', withEvent, async (c) => {
+  const ev = c.get('event');
+  const url = eventUrl(c, ev.slug);
   const download = c.req.query('download') === '1';
   const buf = await QRCode.toBuffer(url, {
     type: 'png',
@@ -211,9 +235,7 @@ admin.get('/admin/qrcode', async (c) => {
     color: { dark: '#0A0A0A', light: '#F0EDE8' },
   });
   c.header('Content-Type', 'image/png');
-  if (download) {
-    c.header('Content-Disposition', 'attachment; filename="qrcode-obscura.png"');
-  }
+  if (download) c.header('Content-Disposition', `attachment; filename="qrcode-${ev.slug}.png"`);
   return c.body(buf);
 });
 
