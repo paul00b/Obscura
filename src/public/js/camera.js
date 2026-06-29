@@ -77,7 +77,10 @@
     show(counterEl);
   }
 
-  // Compte à rebours jusqu'au reveal de la galerie, au format heures.minutes.
+  // Compte à rebours jusqu'au reveal de la galerie, en jours/heures/minutes.
+  function plural(n, singulier, pluriel) {
+    return n + ' ' + (n > 1 ? pluriel : singulier);
+  }
   function updateReveal() {
     if (!REVEAL) { hide(revealEl); return; }
     var diff = REVEAL.getTime() - Date.now();
@@ -91,9 +94,9 @@
     var h = Math.floor((totalMin % 1440) / 60);
     var m = totalMin % 60;
     var txt;
-    if (d >= 1) txt = d + ' j ' + h + ' h';        // ex. "26 j 12 h"
-    else if (h >= 1) txt = h + ' h ' + (m < 10 ? '0' + m : m); // ex. "8 h 05"
-    else txt = m + ' min';                          // ex. "45 min"
+    if (d >= 1) txt = plural(d, 'jour', 'jours') + ' ' + plural(h, 'heure', 'heures');       // ex. "26 jours 12 heures"
+    else if (h >= 1) txt = plural(h, 'heure', 'heures') + ' ' + plural(m, 'minute', 'minutes'); // ex. "8 heures 5 minutes"
+    else txt = plural(m, 'minute', 'minutes');                                                // ex. "45 minutes"
     revealEl.textContent = 'Reveal dans ' + txt;
     show(revealEl);
   }
