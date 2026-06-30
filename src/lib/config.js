@@ -12,6 +12,9 @@ const DEFAULT_CONFIG = {
   adminPasswordHash: '',
   allowedOrigins: '*',
   maxPhotoSizeMb: 8,
+  // Galerie cible des anciennes URLs racine (/, /upload, /photos/…) pour la
+  // compatibilité avec les clients d'avant le système de liens.
+  defaultEventSlug: '',
 };
 
 const EDITABLE_FIELDS = ['allowedOrigins', 'maxPhotoSizeMb'];
@@ -31,7 +34,7 @@ export async function initConfig() {
     // s'en sert pour créer le premier événement).
     const parsed = JSON.parse(raw);
     cache = { ...DEFAULT_CONFIG };
-    for (const key of [...EDITABLE_FIELDS, 'adminPasswordHash']) {
+    for (const key of [...EDITABLE_FIELDS, 'adminPasswordHash', 'defaultEventSlug']) {
       if (key in parsed) cache[key] = parsed[key];
     }
   } catch {
@@ -84,6 +87,16 @@ export function verifyAdminPassword(plainPassword) {
   const cfg = getConfig();
   if (!cfg.adminPasswordHash) return false;
   return bcrypt.compareSync(plainPassword, cfg.adminPasswordHash);
+}
+
+export function getDefaultEventSlug() {
+  return getConfig().defaultEventSlug || '';
+}
+
+export async function setDefaultEventSlug(slug) {
+  const cfg = getConfig();
+  cfg.defaultEventSlug = slug || '';
+  await persist();
 }
 
 // Lecture brute de l'ancien config.json (pour la migration mono-événement).

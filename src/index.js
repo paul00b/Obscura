@@ -10,6 +10,7 @@ import { migrateLegacyEvent } from './lib/events.js';
 
 import event from './routes/event.js';
 import admin from './routes/admin.js';
+import legacy from './routes/legacy.js';
 
 await initConfig();
 await migrateLegacyEvent();
@@ -38,9 +39,7 @@ app.get('/sw.js', async (c) => {
 // --- Routes applicatives ---
 app.route('/', admin);          // /admin/*
 app.route('/e', event);         // /e/:slug/* (galeries invité)
-
-// Racine : pas de galerie par défaut → on envoie vers l'admin.
-app.get('/', (c) => c.redirect('/admin'));
+app.route('/', legacy);         // compat anciennes URLs (/, /upload, /api/*, …)
 
 const port = Number(process.env.PORT) || 3000;
 serve({ fetch: app.fetch, port }, (info) => {

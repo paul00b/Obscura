@@ -1,7 +1,12 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { DATA_DIR, readLegacyConfig } from './config.js';
+import {
+  DATA_DIR,
+  readLegacyConfig,
+  getDefaultEventSlug,
+  setDefaultEventSlug,
+} from './config.js';
 
 export const EVENTS_DIR = path.join(DATA_DIR, 'events');
 
@@ -135,6 +140,7 @@ export async function deleteEvent(slug) {
   try {
     await fs.rm(eventDir(slug), { recursive: true, force: true });
     cache.delete(slug);
+    if (getDefaultEventSlug() === slug) await setDefaultEventSlug('');
     return true;
   } catch {
     return false;
@@ -210,8 +216,22 @@ export async function migrateLegacyEvent() {
   const ev = await createEvent(patch);
   await moveFiles(legacyPhotos, photosDir(ev.slug));
   await moveFiles(legacySessions, sessionsDir(ev.slug));
+  // Les anciennes URLs racine pointeront désormais vers cette galerie.
+  await setDefaultEventSlug(ev.slug);
   console.log(`[events] Galerie existante migrée → /e/${ev.slug} ("${ev.eventName}")`);
   return ev;
+}
+
+// Galerie cible des anciennes URLs (compat clients d'avant les liens).
+// Priorité au slug enregistré ; sinon, s'il n'y a qu'une galerie, c'est elle.
+export async function getDefaultEvent() {
+  const slug = getDefaultEventSlug();
+  if (slug) {
+    const ev = await getEvent(slug);
+    if (ev) return ev;
+  }
+  const all = await listEvents();
+  return all.length === 1 ? all[0] : null;
 }
 
 // La galerie de cet événement est-elle révélée au public ?
