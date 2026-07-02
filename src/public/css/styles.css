@@ -224,12 +224,13 @@ textarea.input {
   display: flex;
   justify-content: center;
 }
-/* Bouton bascule caméra : pastille verre dépoli, en bas à droite,
-   aligné sur le déclencheur (évite de chevaucher le HUD en haut). */
+/* Bouton bascule caméra : pastille verre dépoli, aligné sur le déclencheur,
+   à mi-chemin entre lui et le bord droit (ancré au centre pour rester
+   cohérent quelle que soit la largeur ; évite de chevaucher le HUD). */
 .flip-btn {
   position: absolute;
   bottom: calc(env(safe-area-inset-bottom) + 2rem + 15px);
-  right: 1.75rem;
+  right: calc(50% - 136px);
   width: 42px;
   height: 42px;
   display: flex;
