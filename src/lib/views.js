@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getAssetVersion } from './assets.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VIEWS_DIR = path.resolve(__dirname, '..', '..', 'views');
@@ -26,6 +27,8 @@ function escapeHtml(str) {
 
 // Remplace {{key}} (échappé) et {{{key}}} (brut) dans le template.
 export async function renderView(name, vars = {}) {
+  // v = version des assets, injectée partout pour le cache-busting (?v=…).
+  vars = { v: getAssetVersion(), ...vars };
   let html = await loadView(name);
   html = html.replace(/\{\{\{\s*(\w+)\s*\}\}\}/g, (_, key) =>
     key in vars ? String(vars[key] ?? '') : ''

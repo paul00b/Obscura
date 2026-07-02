@@ -58,6 +58,7 @@ event.use('/:slug/upload', (c, next) => {
 
 // Résolution de l'événement : 404 si le lien n'existe pas.
 event.use('/:slug', resolveEvent);
+event.use('/:slug/', resolveEvent);
 event.use('/:slug/*', resolveEvent);
 async function resolveEvent(c, next) {
   const ev = await getEvent(c.req.param('slug'));
@@ -70,8 +71,9 @@ function base(c) {
   return '/e/' + c.get('event').slug;
 }
 
-// GET /e/:slug → page caméra invité
-event.get('/:slug', async (c) => {
+// GET /e/:slug (et /e/:slug/ avec slash final = start_url du PWA installé)
+// → page caméra invité.
+async function cameraPage(c) {
   const ev = c.get('event');
   const html = await renderView('camera', {
     base: base(c),
@@ -83,7 +85,9 @@ event.get('/:slug', async (c) => {
     revealAt: ev.revealAt ?? '',
   });
   return c.html(html);
-});
+}
+event.get('/:slug', cameraPage);
+event.get('/:slug/', cameraPage);
 
 // Manifest PWA propre à la galerie (start_url = le lien de l'événement).
 event.get('/:slug/manifest.webmanifest', (c) => {
