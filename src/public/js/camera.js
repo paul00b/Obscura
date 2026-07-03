@@ -87,13 +87,21 @@
     return n + ' ' + (n > 1 ? pluriel : singulier);
   }
   function updateReveal() {
-    if (!REVEAL) { hide(revealEl); return; }
-    var diff = REVEAL.getTime() - Date.now();
-    if (diff <= 0) {
-      revealEl.textContent = 'Galerie ouverte';
+    if (!REVEAL) {
+      // Pas de date de reveal → galerie ouverte : on propose quand même l'accès.
+      revealEl.textContent = 'Voir la galerie ›';
+      revealEl.classList.add('counter--link');
       show(revealEl);
       return;
     }
+    var diff = REVEAL.getTime() - Date.now();
+    if (diff <= 0) {
+      revealEl.textContent = 'Galerie ouverte ›';
+      revealEl.classList.add('counter--link');
+      show(revealEl);
+      return;
+    }
+    revealEl.classList.remove('counter--link');
     var totalMin = Math.floor(diff / 60000);
     var d = Math.floor(totalMin / 1440);
     var h = Math.floor((totalMin % 1440) / 60);
@@ -410,6 +418,11 @@
   });
 
   // ---- Événements ----
+  // Le badge de reveal mène à la galerie quand elle est ouverte.
+  if (revealEl) revealEl.addEventListener('click', function () {
+    if (revealEl.classList.contains('counter--link')) location.href = BASE + '/gallery';
+  });
+
   if (startBtn) startBtn.addEventListener('click', startCamera);
   if (retryBtn) retryBtn.addEventListener('click', startCamera);
   if (shutter) shutter.addEventListener('click', capture);

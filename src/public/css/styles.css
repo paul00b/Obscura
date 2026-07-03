@@ -209,6 +209,18 @@ textarea.input {
   border-radius: 999px;
   letter-spacing: 0.05em;
 }
+/* Badge de reveal cliquable (galerie ouverte) */
+.counter--link {
+  cursor: pointer;
+  color: var(--bg);
+  background: var(--accent);
+  font-weight: 500;
+}
+/* Lien « Voir la galerie » sous le bouton d'accueil */
+.welcome-gallery {
+  display: inline-block;
+  margin-top: 1.25rem;
+}
 .controls {
   position: absolute;
   left: 0;
