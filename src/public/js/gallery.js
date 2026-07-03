@@ -23,6 +23,16 @@
   var lbClose = document.getElementById('lb-close');
   var lbPrev = document.getElementById('lb-prev');
   var lbNext = document.getElementById('lb-next');
+  var lbDl = document.getElementById('lb-dl');
+
+  // Sélection multiple
+  var selectToggle = document.getElementById('select-toggle');
+  var selBar = document.getElementById('sel-bar');
+  var selCount = document.getElementById('sel-count');
+  var selCancel = document.getElementById('sel-cancel');
+  var selDownload = document.getElementById('sel-download');
+  var selectMode = false;
+  var selected = {}; // id -> true
 
   var photos = [];
   var currentIndex = 0;
@@ -92,17 +102,77 @@
     photos.forEach(function (p, idx) {
       var item = document.createElement('div');
       item.className = 'grid-item' + (p.filter === 'instant' ? ' filter-instant' : '');
+      item.dataset.id = p.id;
       var img = document.createElement('img');
       img.alt = '';
       img.loading = 'lazy';
       img.dataset.src = BASE + '/photos/' + p.id;
       item.appendChild(img);
-      item.addEventListener('click', function () { openLightbox(idx); });
+      var check = document.createElement('span');
+      check.className = 'grid-check';
+      item.appendChild(check);
+      item.addEventListener('click', function () {
+        if (selectMode) toggleSelect(p.id, item);
+        else openLightbox(idx);
+      });
+      if (selected[p.id]) item.classList.add('selected');
       gridEl.appendChild(item);
       if (io) io.observe(item);
       else { img.src = img.dataset.src; item.classList.add('loaded'); }
     });
   }
+
+  // ---- Sélection multiple ----
+  function toggleSelect(id, item) {
+    if (selected[id]) { delete selected[id]; item.classList.remove('selected'); }
+    else { selected[id] = true; item.classList.add('selected'); }
+    updateSelBar();
+  }
+  function selectedIds() {
+    return Object.keys(selected);
+  }
+  function updateSelBar() {
+    var n = selectedIds().length;
+    if (selCount) selCount.textContent = n + (n > 1 ? ' sélectionnées' : ' sélectionnée');
+    if (selDownload) selDownload.disabled = n === 0;
+  }
+  function enterSelect() {
+    selectMode = true;
+    document.body.classList.add('select-mode');
+    if (selBar) selBar.classList.remove('hidden');
+    updateSelBar();
+  }
+  function exitSelect() {
+    selectMode = false;
+    selected = {};
+    document.body.classList.remove('select-mode');
+    if (selBar) selBar.classList.add('hidden');
+    var items = gridEl.querySelectorAll('.grid-item.selected');
+    for (var i = 0; i < items.length; i++) items[i].classList.remove('selected');
+  }
+  function downloadSelected() {
+    var ids = selectedIds();
+    if (!ids.length) return;
+    // POST vers un iframe caché → le zip se télécharge sans quitter la page,
+    // et on évite les URLs trop longues quand il y a beaucoup de photos.
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = BASE + '/export';
+    form.target = 'dl-frame';
+    var input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'ids';
+    input.value = ids.join(',');
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+  }
+  if (selectToggle) selectToggle.addEventListener('click', function () {
+    if (selectMode) exitSelect(); else enterSelect();
+  });
+  if (selCancel) selCancel.addEventListener('click', exitSelect);
+  if (selDownload) selDownload.addEventListener('click', downloadSelected);
 
   function showGallery() {
     lockedEl.classList.add('hidden');
@@ -119,7 +189,12 @@
   // Les photos s'affichent dans leur orientation native (paysage = paysage),
   // adaptées à l'écran (object-fit: contain) — pas de rotation forcée.
   function showCurrent() {
-    lbImg.src = BASE + '/photos/' + photos[currentIndex].id;
+    var id = photos[currentIndex].id;
+    lbImg.src = BASE + '/photos/' + id;
+    if (lbDl) {
+      lbDl.href = BASE + '/photos/' + id + '?dl=1';
+      lbDl.setAttribute('download', id);
+    }
   }
   function openLightbox(idx) {
     currentIndex = idx;

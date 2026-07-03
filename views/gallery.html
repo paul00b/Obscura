@@ -31,15 +31,35 @@
   <main id="gallery" class="gallery hidden">
     <header class="gallery-header">
       <h1 class="display">{{eventName}}</h1>
-      <a id="dl-all" class="btn gallery-download" href="#" download>Télécharger toutes les photos</a>
+      <div class="gallery-actions">
+        <button id="select-toggle" type="button" class="btn btn--small">Sélectionner</button>
+        <a id="dl-all" class="btn btn--small gallery-download" href="#" download>Tout télécharger</a>
+      </div>
     </header>
     <div id="grid" class="grid"></div>
     <p id="empty" class="empty-state hidden">Aucune photo pour le moment.</p>
   </main>
 
+  <!-- Barre de sélection (mode sélection) -->
+  <div id="sel-bar" class="sel-bar hidden">
+    <span id="sel-count">0 sélectionnée</span>
+    <div class="sel-bar__actions">
+      <button id="sel-cancel" type="button" class="btn btn--small">Annuler</button>
+      <button id="sel-download" type="button" class="btn btn--small">Télécharger</button>
+    </div>
+  </div>
+  <!-- Cible du téléchargement de la sélection (évite de quitter la page) -->
+  <iframe id="dl-frame" name="dl-frame" title="téléchargement" style="display:none"></iframe>
+
   <!-- Lightbox plein écran -->
   <div id="lightbox" class="lightbox hidden">
     <button class="lightbox__close" id="lb-close" aria-label="Fermer">×</button>
+    <a id="lb-dl" class="lightbox__dl" href="#" aria-label="Télécharger" download>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+           stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+        <path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" />
+      </svg>
+    </a>
     <button class="lightbox__nav lightbox__nav--prev" id="lb-prev" aria-label="Précédent">‹</button>
     <img id="lb-img" class="lightbox__img" alt="" />
     <button class="lightbox__nav lightbox__nav--next" id="lb-next" aria-label="Suivant">›</button>

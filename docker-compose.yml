@@ -11,6 +11,8 @@ services:
       - DATA_PATH=/data
       - NODE_ENV=production
       - PORT=3000
+      # Fuseau horaire (dates de reveal en heure locale). Modifiable au besoin.
+      - TZ=${TZ:-Europe/Paris}
       # Au premier démarrage uniquement : définit le mot de passe admin
       # si config.json n'existe pas encore. À retirer ensuite.
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-changeme}

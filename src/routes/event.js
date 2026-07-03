@@ -186,12 +186,25 @@ event.get('/:slug/api/status', (c) => {
 // Config publique (sous-ensemble sûr) pour le client.
 event.get('/:slug/api/config', (c) => c.json(eventPublic(c.get('event'))));
 
-// GET /e/:slug/export → archive ZIP (public, uniquement après reveal)
-event.get('/:slug/export', async (c) => {
+// Export ZIP (public après reveal). Sans `ids` → toutes les photos ;
+// avec `ids` (liste de noms séparés par des virgules, en query GET ou corps
+// POST) → seulement la sélection. POST pour éviter les URLs trop longues.
+async function exportHandler(c) {
   const ev = c.get('event');
   if (!isEventRevealed(ev) && !isAdmin(c)) return c.text('Forbidden', 403);
   const dir = photosDir(ev.slug);
-  const photos = await listPhotos(dir, { order: 'asc' });
+
+  let idsRaw = c.req.query('ids');
+  if (!idsRaw && c.req.method === 'POST') {
+    try { idsRaw = (await c.req.parseBody()).ids; } catch { /* ignore */ }
+  }
+
+  let photos = await listPhotos(dir, { order: 'asc' });
+  if (idsRaw) {
+    const wanted = new Set(String(idsRaw).split(',').map((s) => s.trim()).filter(isValidPhotoName));
+    photos = photos.filter((p) => wanted.has(p.filename));
+  }
+
   const archive = archiver('zip', { zlib: { level: 6 } });
   for (const p of photos) archive.file(photoPath(dir, p.filename), { name: p.filename });
   archive.finalize();
@@ -201,9 +214,12 @@ event.get('/:slug/export', async (c) => {
       'Content-Disposition': 'attachment; filename="obscura-photos.zip"',
     },
   });
-});
+}
+event.get('/:slug/export', exportHandler);
+event.post('/:slug/export', exportHandler);
 
 // GET /e/:slug/photos/:filename → serving des photos (bloqué avant reveal sauf admin)
+// ?dl=1 → force le téléchargement (Content-Disposition attachment).
 event.get('/:slug/photos/:filename', async (c) => {
   const ev = c.get('event');
   const filename = c.req.param('filename');
@@ -217,6 +233,9 @@ event.get('/:slug/photos/:filename', async (c) => {
   }
   c.header('Content-Type', 'image/jpeg');
   c.header('Cache-Control', 'private, max-age=86400');
+  if (c.req.query('dl') === '1') {
+    c.header('Content-Disposition', 'attachment; filename="' + filename + '"');
+  }
   return c.body(data);
 });
 

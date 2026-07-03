@@ -457,7 +457,14 @@ textarea.input {
   padding: 2rem 0 2.5rem;
 }
 .gallery-download {
+  margin-top: 0;
+}
+.gallery-actions {
   margin-top: 1.25rem;
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 .grid {
   column-count: 2;
@@ -469,6 +476,7 @@ textarea.input {
   .grid { column-count: 3; }
 }
 .grid-item {
+  position: relative;
   break-inside: avoid;
   margin-bottom: 0.5rem;
   opacity: 0;
@@ -476,6 +484,65 @@ textarea.input {
 }
 .grid-item.loaded {
   opacity: 1;
+}
+/* Case de sélection (visible seulement en mode sélection) */
+.grid-check {
+  display: none;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+body.select-mode .grid-check {
+  display: block;
+}
+body.select-mode .grid-item img {
+  cursor: pointer;
+}
+.grid-item.selected img {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}
+.grid-item.selected .grid-check {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.grid-item.selected .grid-check::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bg);
+  font-size: 14px;
+  font-weight: 700;
+}
+/* Barre de sélection */
+.sel-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem calc(0.85rem + env(safe-area-inset-bottom));
+  background: rgba(17, 17, 17, 0.96);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--border);
+}
+.sel-bar__actions {
+  display: flex;
+  gap: 0.6rem;
 }
 .grid-item img {
   width: 100%;
@@ -537,6 +604,27 @@ textarea.input {
 }
 .lightbox__nav--prev { left: 0.25rem; }
 .lightbox__nav--next { right: 0.25rem; }
+/* Bouton téléchargement de la photo ouverte (en haut à gauche) */
+.lightbox__dl {
+  position: absolute;
+  top: 1rem;
+  left: 1.25rem;
+  z-index: 51;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0.85;
+  transition: opacity var(--ease), background var(--ease);
+}
+.lightbox__dl:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.6);
+}
 
 /* ============ DIAPORAMA ============ */
 .slideshow-body {
